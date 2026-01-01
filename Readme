@@ -1,0 +1,5 @@
+packages UUIDs(Universally Unique Identifiers):- are used in the backend primarily to ensure global uniqueness of records across different systems and to provide a high level of scalability and security in distributed architectures
+
+Global Uniqueness and Data Merging: UUIDs are 128-bit identifiers with an astronomically low probability of collision. This ensures that an ID generated in one system, environment, or database will not conflict with one generated elsewhere. This property is crucial when:
+Merging data from different databases or microservices.
+Replicating databases across multiple servers without requiring a central ID coordination authority.
