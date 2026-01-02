@@ -3,12 +3,15 @@
 @tailwind utilities;
 
 @keyframes drop {
-  0% {
-    transform: translateY(var(--drop-from, -400px));
-    opacity: 1;
+  from {
+    transform: translateY(var(--drop-from));
   }
-  100% {
+  to {
     transform: translateY(0);
-    opacity: 1;
   }
 }
+
+.animate-drop {
+  animation: drop 0.45s ease-in;
+}
+

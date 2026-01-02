@@ -27,6 +27,7 @@ module.exports = function (server) {
       const currentPlayerIndex = game.turn;
       const currentSocketId = game.players[currentPlayerIndex];
 
+      // ❌ not your turn
       if (socket.id !== currentSocketId) return;
 
       const symbol = currentPlayerIndex === 0 ? "R" : "Y";
@@ -34,6 +35,7 @@ module.exports = function (server) {
       const row = dropDisc(game.board, col, symbol);
       if (row === -1) return;
 
+      // 🏆 win
       if (checkWin(game.board, symbol)) {
         io.to(roomId).emit("game_over", {
           winner: currentSocketId,
@@ -43,6 +45,7 @@ module.exports = function (server) {
         return;
       }
 
+      // 🤝 draw
       if (checkDraw(game.board)) {
         io.to(roomId).emit("game_over", {
           winner: null,
@@ -52,8 +55,10 @@ module.exports = function (server) {
         return;
       }
 
+      // 🔁 switch turn
       game.turn = game.turn === 0 ? 1 : 0;
 
+      // ✅ THIS NOW WORKS (room exists)
       io.to(roomId).emit("game_update", {
         board: game.board,
         turn: game.turn

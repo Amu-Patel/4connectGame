@@ -10,26 +10,27 @@ function App() {
   const [youAre, setYouAre] = useState(null); // 0 or 1
 
   useEffect(() => {
-    // Waiting for opponent
-    socket.on("waiting", () => setWaiting(true));
+    socket.on("waiting", () => {
+      setWaiting(true);
+    });
 
-    // Join a match
-    socket.on("join", ({ roomId, board, turn, playerIndex }) => {
+    socket.on("join", ({ roomId, board, turn, players }) => {
       setRoomId(roomId);
       setBoard(board);
-      setTurn(turn);         // 0 or 1
-      setYouAre(playerIndex); // 0 or 1
+      setTurn(turn);
+
+      // ✅ IMPORTANT FIX
+      const myIndex = players.indexOf(socket.id);
+      setYouAre(myIndex);
+
       setWaiting(false);
     });
 
-    // Update board after each move
     socket.on("game_update", ({ board, turn }) => {
-      console.log("Game update received! Board:", board, "Turn:", turn);
       setBoard(board);
       setTurn(turn);
     });
 
-    // Game over
     socket.on("game_over", ({ winner }) => {
       if (winner === null) alert("Draw!");
       else if (winner === "opponent_left") alert("Opponent left!");
@@ -47,11 +48,11 @@ function App() {
 
   const findMatch = () => socket.emit("find_match");
 
-  // ---------------- UI ----------------
   if (!roomId) {
     return (
       <div className="h-screen bg-slate-900 text-white flex flex-col items-center justify-center">
         <h1 className="text-4xl font-bold mb-6">4 in a Row</h1>
+
         {waiting ? (
           <p className="text-xl">Waiting for opponent...</p>
         ) : (
