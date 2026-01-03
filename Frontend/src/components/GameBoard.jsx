@@ -1,18 +1,18 @@
 import { useEffect, useRef, useState } from "react";
 import socket from "../socket";
 
-/* 🔴🟡 Disc color helper */
+// Disc color mapping
 const getDiscColor = (cell) => {
-  if (cell === "R") return "bg-red-500";
-  if (cell === "Y") return "bg-yellow-400";
+  if (cell === "red") return "bg-red-500";
+  if (cell === "yellow") return "bg-yellow-400";
   return "";
 };
 
-function GameBoard({ board, turn, youAre, roomId }) {
+function GameBoard({ board, turn, youAre, roomId, bot }) {
   const prevBoard = useRef(null);
   const [animatedCell, setAnimatedCell] = useState(null);
 
-  /* Detect newly added disc */
+  // Detect newly added disc for animation
   useEffect(() => {
     if (!board) return;
 
@@ -25,10 +25,7 @@ function GameBoard({ board, turn, youAre, roomId }) {
 
     for (let c = 0; c < 7; c++) {
       for (let r = 5; r >= 0; r--) {
-        if (
-          board[r][c] !== null &&
-          prevBoard.current[r][c] === null
-        ) {
+        if (board[r][c] !== null && prevBoard.current[r][c] === null) {
           newDisc = { r, c };
           break;
         }
@@ -41,7 +38,7 @@ function GameBoard({ board, turn, youAre, roomId }) {
     if (newDisc) {
       requestAnimationFrame(() => {
         setAnimatedCell(newDisc);
-        setTimeout(() => setAnimatedCell(null), 500);
+        setTimeout(() => setAnimatedCell(null), 450);
       });
     }
   }, [board]);
@@ -58,9 +55,8 @@ function GameBoard({ board, turn, youAre, roomId }) {
 
   return (
     <div className="h-screen bg-slate-900 text-white flex flex-col items-center justify-center gap-4">
-
       <div className="text-lg font-semibold">
-        {isYourTurn ? "Your Turn" : "Opponent's Turn"}
+        {isYourTurn ? "Your Turn" : bot && turn !== youAre ? "Bot's Turn" : "Opponent's Turn"}
       </div>
 
       {/* Column headers */}
@@ -114,6 +110,8 @@ function GameBoard({ board, turn, youAre, roomId }) {
           })
         )}
       </div>
+
+      {bot && <div className="text-sm text-gray-300 mt-2">Playing against Bot 🤖</div>}
     </div>
   );
 }

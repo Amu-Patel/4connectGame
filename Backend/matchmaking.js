@@ -3,48 +3,71 @@ const { createBoard } = require("./game/gameLogic");
 
 let waitingPlayer = null;
 
-/**
- * Finds or creates a match for a connecting socket
- */
-function findMatch(socket, io, games) {
-  // 🧍 First player waits
+function findMatch(io, socket, games) {
+  // If no one waiting → wait for 5 seconds, then bot
   if (!waitingPlayer) {
     waitingPlayer = socket;
     socket.emit("waiting");
-    console.log("Player waiting:", socket.id);
+
+    setTimeout(() => {
+      if (waitingPlayer === socket) {
+        startBotGame(io, socket, games);
+        waitingPlayer = null;
+      }
+    }, 5000);
+
     return;
   }
 
-  // 👥 Second player joins → create match
-  const roomId = `room_${waitingPlayer.id}_${socket.id}`;
+  // Human vs Human
+  startHumanGame(io, waitingPlayer, socket, games);
+  waitingPlayer = null;
+}
 
-  // 🧠 Initialize game state
-  const board = createBoard(); // 6x7 array filled with null
-  const players = [waitingPlayer.id, socket.id]; // index = player number
-  const turn = 0; // player 0 (Red) starts
+function startHumanGame(io, p1, p2, games) {
+  const roomId = `room_${p1.id}_${p2.id}`;
 
   games[roomId] = {
-    board,
-    players,
-    turn
+    board: createBoard(),
+    players: {
+      [p1.id]: "red",
+      [p2.id]: "yellow"
+    },
+    turn: "red",
+    isBotGame: false
   };
 
-  // 🔑 CRITICAL FIX: join BOTH sockets to the room
-  waitingPlayer.join(roomId);
-  socket.join(roomId);
+  p1.join(roomId);
+  p2.join(roomId);
 
-  // 📢 Notify both players
   io.to(roomId).emit("join", {
     roomId,
-    board,
-    turn,
-    players
+    players: games[roomId].players,
+    turn: "red"
   });
+}
 
-  console.log("Match created:", roomId);
+function startBotGame(io, socket, games) {
+  const roomId = `room_${socket.id}_BOT`;
 
-  // Reset waiting player
-  waitingPlayer = null;
+  games[roomId] = {
+    board: createBoard(),
+    players: {
+      [socket.id]: "red",
+      BOT: "yellow"
+    },
+    turn: "red",
+    isBotGame: true
+  };
+
+  socket.join(roomId);
+
+  socket.emit("join", {
+    roomId,
+    players: games[roomId].players,
+    turn: "red",
+    bot: true
+  });
 }
 
 module.exports = { findMatch };

@@ -1,5 +1,6 @@
 const { Server } = require("socket.io");
 const { findMatch } = require("./matchmaking");
+const { botMove } = require("./game/bot"); 
 const {
   dropDisc,
   checkWin,
@@ -9,43 +10,34 @@ const {
 const games = {};
 
 module.exports = function (server) {
-  const io = new Server(server, {
-    cors: { origin: "*" }
-  });
+  const io = new Server(server, { cors: { origin: "*" } });
 
   io.on("connection", (socket) => {
-    console.log("User connected:", socket.id);
+    console.log("Connected:", socket.id);
 
     socket.on("find_match", () => {
-      findMatch(socket, io, games);
+      findMatch(io, socket, games);
     });
 
     socket.on("move", ({ roomId, col }) => {
       const game = games[roomId];
       if (!game) return;
 
-      const currentPlayerIndex = game.turn;
-      const currentSocketId = game.players[currentPlayerIndex];
+      const playerColor = game.players[socket.id];
+      if (game.turn !== playerColor) return;
 
-      // ❌ not your turn
-      if (socket.id !== currentSocketId) return;
-
-      const symbol = currentPlayerIndex === 0 ? "R" : "Y";
-
-      const row = dropDisc(game.board, col, symbol);
+      const row = dropDisc(game.board, col, playerColor);
       if (row === -1) return;
 
-      // 🏆 win
-      if (checkWin(game.board, symbol)) {
+      if (checkWin(game.board, playerColor)) {
         io.to(roomId).emit("game_over", {
-          winner: currentSocketId,
+          winner: socket.id,
           board: game.board
         });
         delete games[roomId];
         return;
       }
 
-      // 🤝 draw
       if (checkDraw(game.board)) {
         io.to(roomId).emit("game_over", {
           winner: null,
@@ -55,19 +47,49 @@ module.exports = function (server) {
         return;
       }
 
-      // 🔁 switch turn
-      game.turn = game.turn === 0 ? 1 : 0;
+      game.turn = playerColor === "red" ? "yellow" : "red";
 
-      // ✅ THIS NOW WORKS (room exists)
       io.to(roomId).emit("game_update", {
         board: game.board,
         turn: game.turn
       });
+
+      // 🤖 SMART BOT MOVE
+      if (game.isBotGame && game.turn === "yellow") {
+        const botCol = botMove(game.board);
+        if (botCol === null) return;
+
+        dropDisc(game.board, botCol, "yellow");
+
+        if (checkWin(game.board, "yellow")) {
+          io.to(roomId).emit("game_over", {
+            winner: "BOT",
+            board: game.board
+          });
+          delete games[roomId];
+          return;
+        }
+
+        if (checkDraw(game.board)) {
+          io.to(roomId).emit("game_over", {
+            winner: null,
+            board: game.board
+          });
+          delete games[roomId];
+          return;
+        }
+
+        game.turn = "red";
+        io.to(roomId).emit("game_update", {
+          board: game.board,
+          turn: "red"
+        });
+      }
     });
 
     socket.on("disconnect", () => {
       for (const roomId in games) {
-        if (games[roomId].players.includes(socket.id)) {
+        if (games[roomId].players[socket.id]) {
           io.to(roomId).emit("game_over", {
             winner: "opponent_left"
           });
