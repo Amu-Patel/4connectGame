@@ -1,10 +1,10 @@
 // matchmaking.js
-const { createBoard } = require("./game/gameLogic");
+import { createBoard } from "./game/gameLogic.js";
 
 let waitingPlayer = null;
 
-function findMatch(io, socket, games) {
-  // If no one waiting → wait for 5 seconds, then bot
+export function findMatch(io, socket, games) {
+  // If no one waiting → wait for 10 seconds, then start bot
   if (!waitingPlayer) {
     waitingPlayer = socket;
     socket.emit("waiting");
@@ -69,5 +69,3 @@ function startBotGame(io, socket, games) {
     bot: true
   });
 }
-
-module.exports = { findMatch };

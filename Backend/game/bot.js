@@ -1,4 +1,5 @@
-const { checkWin } = require("./gameLogic");
+// bot.js
+import { checkWin } from "./gameLogic.js";
 
 function cloneBoard(board) {
   return board.map(row => [...row]);
@@ -16,6 +17,7 @@ function simulateMove(board, col, color) {
   return null;
 }
 
+// Optional smarter bot strategy (commented out)
 // function botMove(board) {
 //   // 1️⃣ WIN
 //   for (let c = 0; c < 7; c++) {
@@ -39,6 +41,7 @@ function simulateMove(board, col, color) {
 
 //   return null;
 // }
+
 function botMove(board) {
   const validColumns = board[0]
     .map((_, i) => i)
@@ -49,4 +52,4 @@ function botMove(board) {
   return validColumns[Math.floor(Math.random() * validColumns.length)];
 }
 
-module.exports = { botMove };
+export { botMove };

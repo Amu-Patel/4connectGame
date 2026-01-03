@@ -1,13 +1,16 @@
-const mongoose = require("mongoose");
+import mongoose from "mongoose";
 
 const connectDB = async () => {
   try {
-    await mongoose.connect("mongodb://127.0.0.1:27017/four_in_a_row");
-    console.log("MongoDB Connected");
-  } catch (err) {
-    console.error(err);
+    mongoose.connection.on("connected", () =>
+      console.log("✅ Database Connected")
+    );
+
+    await mongoose.connect(process.env.MONGODB_URI);
+  } catch (error) {
+    console.error("❌ DB Connection Failed:", error.message);
     process.exit(1);
   }
 };
 
-module.exports = connectDB;
+export default connectDB;

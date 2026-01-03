@@ -19,10 +19,10 @@ function dropDisc(board, col, player) {
 
 function checkWin(board, player) {
   const directions = [
-    [0, 1],
-    [1, 0],
-    [1, 1],
-    [-1, 1],
+    [0, 1],   // horizontal
+    [1, 0],   // vertical
+    [1, 1],   // diagonal down-right
+    [-1, 1],  // diagonal up-right
   ];
 
   for (let r = 0; r < ROWS; r++) {
@@ -56,4 +56,5 @@ function checkDraw(board) {
   return board[0].every(cell => cell !== null);
 }
 
-module.exports = {ROWS,COLS,createBoard,dropDisc,checkWin,checkDraw};
+// ✅ ES Module export
+export { ROWS, COLS, createBoard, dropDisc, checkWin, checkDraw };

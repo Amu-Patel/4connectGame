@@ -1,13 +1,14 @@
-const express = require("express");
-const http = require("http");
-const cors = require("cors");
-const connectDB = require("./db");
-const setupSocket = require("./socket");
+import express from "express";
+import http from "http";
+import cors from "cors";
+import dotenv from "dotenv";
+import connectDB from "./db.js";
+import setupSocket from "./socket.js";
 
 const app = express();
 app.use(cors());
 app.use(express.json());
-
+dotenv.config();
 connectDB();
 
 const server = http.createServer(app);

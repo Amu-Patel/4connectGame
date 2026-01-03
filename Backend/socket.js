@@ -100,14 +100,14 @@
 //   });
 // };
 
-const { Server } = require("socket.io");
-const { findMatch } = require("./matchmaking");
-const { dropDisc, checkWin, checkDraw } = require("./game/gameLogic");
-const { botMove } = require("./game/bot");
+import { Server } from "socket.io";
+import { findMatch } from "./matchmaking.js";
+import { dropDisc, checkWin, checkDraw } from "./game/gameLogic.js";
+import { botMove } from "./game/bot.js";
 
 const activeGames = {}; // store all ongoing games
 
-module.exports = function (server) {
+export default function (server) {
   const io = new Server(server, { cors: { origin: "*" } });
 
   io.on("connection", (socket) => {
@@ -168,11 +168,9 @@ module.exports = function (server) {
         if (!game.players[socket.id]) continue;
 
         if (game.isBotGame) {
-          // End bot game immediately
           io.to(roomId).emit("game_over", { winner: "BOT" });
           delete activeGames[roomId];
         } else {
-          // PvP game: start 30s reconnect timer
           const opponentId = Object.keys(game.players).find(id => id !== socket.id);
 
           io.to(opponentId).emit("opponent_disconnected", {
@@ -183,7 +181,6 @@ module.exports = function (server) {
           game.lastSeen[socket.id] = Date.now();
 
           game.disconnectTimer = setTimeout(() => {
-            // Timer expired → opponent wins
             io.to(roomId).emit("game_over", { winner: opponentId });
             delete activeGames[roomId];
           }, 30000);
@@ -197,7 +194,6 @@ module.exports = function (server) {
         const game = activeGames[roomId];
         if (!game.players[socket.id]) continue;
 
-        // Cancel disconnect timer
         if (game.disconnectTimer) {
           clearTimeout(game.disconnectTimer);
           game.disconnectTimer = null;
@@ -205,7 +201,6 @@ module.exports = function (server) {
 
         socket.join(roomId);
 
-        // Send current game state
         socket.emit("join", {
           roomId,
           board: game.board,
@@ -213,8 +208,7 @@ module.exports = function (server) {
           players: game.players,
         });
 
-        // Notify opponent
-        const opponentId = Object.keys(game.players).find((id) => id !== socket.id);
+        const opponentId = Object.keys(game.players).find(id => id !== socket.id);
         io.to(opponentId).emit("opponent_reconnected", {
           message: "Opponent reconnected!",
         });
@@ -230,21 +224,18 @@ module.exports = function (server) {
     const col = botMove(game.board);
     dropDisc(game.board, col, "yellow");
 
-    // Check bot win
     if (checkWin(game.board, "yellow")) {
       io.to(roomId).emit("game_over", { winner: "BOT", board: game.board });
       delete activeGames[roomId];
       return;
     }
 
-    // Check draw
     if (checkDraw(game.board)) {
       io.to(roomId).emit("game_over", { winner: null, board: game.board });
       delete activeGames[roomId];
       return;
     }
 
-    // Switch turn back to player
     game.turn = "red";
 
     io.to(roomId).emit("game_update", {
@@ -252,4 +243,4 @@ module.exports = function (server) {
       turn: game.turn,
     });
   }
-};
+}
