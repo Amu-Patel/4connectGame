@@ -1,13 +1,111 @@
+// const { Server } = require("socket.io");
+// const { findMatch } = require("./matchmaking");
+// const { botMove } = require("./game/bot"); 
+// const {
+//   dropDisc,
+//   checkWin,
+//   checkDraw
+// } = require("./game/gameLogic");
+
+// const games = {};
+
+// module.exports = function (server) {
+//   const io = new Server(server, { cors: { origin: "*" } });
+
+//   io.on("connection", (socket) => {
+//     console.log("Connected:", socket.id);
+
+//     socket.on("find_match", () => {
+//       findMatch(io, socket, games);
+//     });
+
+//     socket.on("move", ({ roomId, col }) => {
+//       const game = games[roomId];
+//       if (!game) return;
+
+//       const playerColor = game.players[socket.id];
+//       if (game.turn !== playerColor) return;
+
+//       const row = dropDisc(game.board, col, playerColor);
+//       if (row === -1) return;
+
+//       if (checkWin(game.board, playerColor)) {
+//         io.to(roomId).emit("game_over", {
+//           winner: socket.id,
+//           board: game.board
+//         });
+//         delete games[roomId];
+//         return;
+//       }
+
+//       if (checkDraw(game.board)) {
+//         io.to(roomId).emit("game_over", {
+//           winner: null,
+//           board: game.board
+//         });
+//         delete games[roomId];
+//         return;
+//       }
+
+//       game.turn = playerColor === "red" ? "yellow" : "red";
+
+//       io.to(roomId).emit("game_update", {
+//         board: game.board,
+//         turn: game.turn
+//       });
+
+//       // 🤖 SMART BOT MOVE
+//       if (game.isBotGame && game.turn === "yellow") {
+//         const botCol = botMove(game.board);
+//         if (botCol === null) return;
+
+//         dropDisc(game.board, botCol, "yellow");
+
+//         if (checkWin(game.board, "yellow")) {
+//           io.to(roomId).emit("game_over", {
+//             winner: "BOT",
+//             board: game.board
+//           });
+//           delete games[roomId];
+//           return;
+//         }
+
+//         if (checkDraw(game.board)) {
+//           io.to(roomId).emit("game_over", {
+//             winner: null,
+//             board: game.board
+//           });
+//           delete games[roomId];
+//           return;
+//         }
+
+//         game.turn = "red";
+//         io.to(roomId).emit("game_update", {
+//           board: game.board,
+//           turn: "red"
+//         });
+//       }
+//     });
+
+//     socket.on("disconnect", () => {
+//       for (const roomId in games) {
+//         if (games[roomId].players[socket.id]) {
+//           io.to(roomId).emit("game_over", {
+//             winner: "opponent_left"
+//           });
+//           delete games[roomId];
+//         }
+//       }
+//     });
+//   });
+// };
+
 const { Server } = require("socket.io");
 const { findMatch } = require("./matchmaking");
-const { botMove } = require("./game/bot"); 
-const {
-  dropDisc,
-  checkWin,
-  checkDraw
-} = require("./game/gameLogic");
+const { dropDisc, checkWin, checkDraw } = require("./game/gameLogic");
+const { botMove } = require("./game/bot");
 
-const games = {};
+const activeGames = {}; // store all ongoing games
 
 module.exports = function (server) {
   const io = new Server(server, { cors: { origin: "*" } });
@@ -15,87 +113,143 @@ module.exports = function (server) {
   io.on("connection", (socket) => {
     console.log("Connected:", socket.id);
 
-    socket.on("find_match", () => {
-      findMatch(io, socket, games);
-    });
+    /* ======== Find Match ======== */
+    socket.on("find_match", () => findMatch(io, socket, activeGames));
 
+    /* ======== Handle Move ======== */
     socket.on("move", ({ roomId, col }) => {
-      const game = games[roomId];
+      const game = activeGames[roomId];
       if (!game) return;
 
       const playerColor = game.players[socket.id];
-      if (game.turn !== playerColor) return;
+      if (game.turn !== playerColor) return; // not your turn
 
       const row = dropDisc(game.board, col, playerColor);
       if (row === -1) return;
 
+      // Check win
       if (checkWin(game.board, playerColor)) {
         io.to(roomId).emit("game_over", {
           winner: socket.id,
-          board: game.board
+          board: game.board,
         });
-        delete games[roomId];
+        delete activeGames[roomId];
         return;
       }
 
+      // Check draw
       if (checkDraw(game.board)) {
         io.to(roomId).emit("game_over", {
           winner: null,
-          board: game.board
+          board: game.board,
         });
-        delete games[roomId];
+        delete activeGames[roomId];
         return;
       }
 
+      // Switch turn
       game.turn = playerColor === "red" ? "yellow" : "red";
 
       io.to(roomId).emit("game_update", {
         board: game.board,
-        turn: game.turn
+        turn: game.turn,
       });
 
-      // 🤖 SMART BOT MOVE
+      // Bot move if bot game
       if (game.isBotGame && game.turn === "yellow") {
-        const botCol = botMove(game.board);
-        if (botCol === null) return;
+        setTimeout(() => botMakeMove(io, roomId), 500); // slight delay for UX
+      }
+    });
 
-        dropDisc(game.board, botCol, "yellow");
+    /* ======== Disconnect ======== */
+    socket.on("disconnect", () => {
+      for (const roomId in activeGames) {
+        const game = activeGames[roomId];
+        if (!game.players[socket.id]) continue;
 
-        if (checkWin(game.board, "yellow")) {
-          io.to(roomId).emit("game_over", {
-            winner: "BOT",
-            board: game.board
+        if (game.isBotGame) {
+          // End bot game immediately
+          io.to(roomId).emit("game_over", { winner: "BOT" });
+          delete activeGames[roomId];
+        } else {
+          // PvP game: start 30s reconnect timer
+          const opponentId = Object.keys(game.players).find(id => id !== socket.id);
+
+          io.to(opponentId).emit("opponent_disconnected", {
+            message: "Opponent disconnected! 30s to reconnect.",
           });
-          delete games[roomId];
-          return;
+
+          game.lastSeen = game.lastSeen || {};
+          game.lastSeen[socket.id] = Date.now();
+
+          game.disconnectTimer = setTimeout(() => {
+            // Timer expired → opponent wins
+            io.to(roomId).emit("game_over", { winner: opponentId });
+            delete activeGames[roomId];
+          }, 30000);
+        }
+      }
+    });
+
+    /* ======== Reconnect ======== */
+    socket.on("reconnect_game", () => {
+      for (const roomId in activeGames) {
+        const game = activeGames[roomId];
+        if (!game.players[socket.id]) continue;
+
+        // Cancel disconnect timer
+        if (game.disconnectTimer) {
+          clearTimeout(game.disconnectTimer);
+          game.disconnectTimer = null;
         }
 
-        if (checkDraw(game.board)) {
-          io.to(roomId).emit("game_over", {
-            winner: null,
-            board: game.board
-          });
-          delete games[roomId];
-          return;
-        }
+        socket.join(roomId);
 
-        game.turn = "red";
-        io.to(roomId).emit("game_update", {
+        // Send current game state
+        socket.emit("join", {
+          roomId,
           board: game.board,
-          turn: "red"
+          turn: game.turn,
+          players: game.players,
+        });
+
+        // Notify opponent
+        const opponentId = Object.keys(game.players).find((id) => id !== socket.id);
+        io.to(opponentId).emit("opponent_reconnected", {
+          message: "Opponent reconnected!",
         });
       }
     });
-
-    socket.on("disconnect", () => {
-      for (const roomId in games) {
-        if (games[roomId].players[socket.id]) {
-          io.to(roomId).emit("game_over", {
-            winner: "opponent_left"
-          });
-          delete games[roomId];
-        }
-      }
-    });
   });
+
+  /* ======== Bot Move Helper ======== */
+  function botMakeMove(io, roomId) {
+    const game = activeGames[roomId];
+    if (!game) return;
+
+    const col = botMove(game.board);
+    dropDisc(game.board, col, "yellow");
+
+    // Check bot win
+    if (checkWin(game.board, "yellow")) {
+      io.to(roomId).emit("game_over", { winner: "BOT", board: game.board });
+      delete activeGames[roomId];
+      return;
+    }
+
+    // Check draw
+    if (checkDraw(game.board)) {
+      io.to(roomId).emit("game_over", { winner: null, board: game.board });
+      delete activeGames[roomId];
+      return;
+    }
+
+    // Switch turn back to player
+    game.turn = "red";
+
+    io.to(roomId).emit("game_update", {
+      board: game.board,
+      turn: game.turn,
+    });
+  }
 };

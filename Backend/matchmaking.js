@@ -14,7 +14,7 @@ function findMatch(io, socket, games) {
         startBotGame(io, socket, games);
         waitingPlayer = null;
       }
-    }, 5000);
+    }, 10000);
 
     return;
   }
