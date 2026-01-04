@@ -1,16 +1,14 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
-
 @keyframes drop {
   from {
-    transform: translateY(var(--drop-from));
+    transform: translateY(var(-150%));
   }
   to {
     transform: translateY(0);
   }
 }
-
 .animate-drop {
   animation: drop 0.45s ease-in;
 }

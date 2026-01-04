@@ -1,143 +1,60 @@
-// const { Server } = require("socket.io");
-// const { findMatch } = require("./matchmaking");
-// const { botMove } = require("./game/bot"); 
-// const {
-//   dropDisc,
-//   checkWin,
-//   checkDraw
-// } = require("./game/gameLogic");
-
-// const games = {};
-
-// module.exports = function (server) {
-//   const io = new Server(server, { cors: { origin: "*" } });
-
-//   io.on("connection", (socket) => {
-//     console.log("Connected:", socket.id);
-
-//     socket.on("find_match", () => {
-//       findMatch(io, socket, games);
-//     });
-
-//     socket.on("move", ({ roomId, col }) => {
-//       const game = games[roomId];
-//       if (!game) return;
-
-//       const playerColor = game.players[socket.id];
-//       if (game.turn !== playerColor) return;
-
-//       const row = dropDisc(game.board, col, playerColor);
-//       if (row === -1) return;
-
-//       if (checkWin(game.board, playerColor)) {
-//         io.to(roomId).emit("game_over", {
-//           winner: socket.id,
-//           board: game.board
-//         });
-//         delete games[roomId];
-//         return;
-//       }
-
-//       if (checkDraw(game.board)) {
-//         io.to(roomId).emit("game_over", {
-//           winner: null,
-//           board: game.board
-//         });
-//         delete games[roomId];
-//         return;
-//       }
-
-//       game.turn = playerColor === "red" ? "yellow" : "red";
-
-//       io.to(roomId).emit("game_update", {
-//         board: game.board,
-//         turn: game.turn
-//       });
-
-//       // 🤖 SMART BOT MOVE
-//       if (game.isBotGame && game.turn === "yellow") {
-//         const botCol = botMove(game.board);
-//         if (botCol === null) return;
-
-//         dropDisc(game.board, botCol, "yellow");
-
-//         if (checkWin(game.board, "yellow")) {
-//           io.to(roomId).emit("game_over", {
-//             winner: "BOT",
-//             board: game.board
-//           });
-//           delete games[roomId];
-//           return;
-//         }
-
-//         if (checkDraw(game.board)) {
-//           io.to(roomId).emit("game_over", {
-//             winner: null,
-//             board: game.board
-//           });
-//           delete games[roomId];
-//           return;
-//         }
-
-//         game.turn = "red";
-//         io.to(roomId).emit("game_update", {
-//           board: game.board,
-//           turn: "red"
-//         });
-//       }
-//     });
-
-//     socket.on("disconnect", () => {
-//       for (const roomId in games) {
-//         if (games[roomId].players[socket.id]) {
-//           io.to(roomId).emit("game_over", {
-//             winner: "opponent_left"
-//           });
-//           delete games[roomId];
-//         }
-//       }
-//     });
-//   });
-// };
-
 import { Server } from "socket.io";
+import Player from "./models/Player.js";
 import { findMatch } from "./matchmaking.js";
 import { dropDisc, checkWin, checkDraw } from "./game/gameLogic.js";
 import { botMove } from "./game/bot.js";
 
-const activeGames = {}; // store all ongoing games
+const activeGames = {}; // in-memory games
 
-export default function (server) {
+export default function setupSocket(server) {
   const io = new Server(server, { cors: { origin: "*" } });
 
   io.on("connection", (socket) => {
-    console.log("Connected:", socket.id);
+    console.log("Socket connected:", socket.id);
 
-    /* ======== Find Match ======== */
-    socket.on("find_match", () => findMatch(io, socket, activeGames));
+    socket.on("registerUser", async (username) => {
+      try {
+        if (!username) return;
+        const clean = username.trim().toLowerCase();
+        let player = await Player.findOne({ username: clean });
+        if (!player) {
+          player = await Player.create({ username: clean });
+        }
+        socket.data.username = clean;
+        console.log(`Registered user: ${clean}`);
+        await emitLeaderboard(io);
+      } catch (err) {
+        console.error("registerUser error:", err.message);
+      }
+    });
 
-    /* ======== Handle Move ======== */
-    socket.on("move", ({ roomId, col }) => {
+    socket.on("find_match", () => {
+      findMatch(io, socket, activeGames);
+    });
+
+    socket.on("move", async ({ roomId, col }) => {
       const game = activeGames[roomId];
       if (!game) return;
 
-      const playerColor = game.players[socket.id];
-      if (game.turn !== playerColor) return; // not your turn
+      const color = game.players[socket.id];
+      if (game.turn !== color) return;
 
-      const row = dropDisc(game.board, col, playerColor);
+      const row = dropDisc(game.board, col, color);
       if (row === -1) return;
 
-      // Check win
-      if (checkWin(game.board, playerColor)) {
+      if (checkWin(game.board, color)) {
         io.to(roomId).emit("game_over", {
           winner: socket.id,
           board: game.board,
         });
+
+        await handleWin(socket);
+        await emitLeaderboard(io);
+
         delete activeGames[roomId];
         return;
       }
 
-      // Check draw
       if (checkDraw(game.board)) {
         io.to(roomId).emit("game_over", {
           winner: null,
@@ -146,23 +63,21 @@ export default function (server) {
         delete activeGames[roomId];
         return;
       }
-
-      // Switch turn
-      game.turn = playerColor === "red" ? "yellow" : "red";
+      game.turn = color === "red" ? "yellow" : "red";
 
       io.to(roomId).emit("game_update", {
         board: game.board,
         turn: game.turn,
       });
 
-      // Bot move if bot game
       if (game.isBotGame && game.turn === "yellow") {
-        setTimeout(() => botMakeMove(io, roomId), 500); // slight delay for UX
+        setTimeout(() => botMakeMove(io, roomId), 500);
       }
     });
 
-    /* ======== Disconnect ======== */
     socket.on("disconnect", () => {
+      console.log("Disconnected:", socket.id);
+
       for (const roomId in activeGames) {
         const game = activeGames[roomId];
         if (!game.players[socket.id]) continue;
@@ -171,34 +86,29 @@ export default function (server) {
           io.to(roomId).emit("game_over", { winner: "BOT" });
           delete activeGames[roomId];
         } else {
-          const opponentId = Object.keys(game.players).find(id => id !== socket.id);
+          const opponentId = Object.keys(game.players)
+            .find(id => id !== socket.id);
 
           io.to(opponentId).emit("opponent_disconnected", {
             message: "Opponent disconnected! 30s to reconnect.",
           });
 
-          game.lastSeen = game.lastSeen || {};
-          game.lastSeen[socket.id] = Date.now();
-
           game.disconnectTimer = setTimeout(() => {
-            io.to(roomId).emit("game_over", { winner: opponentId });
+            io.to(roomId).emit("game_over", {
+              winner: opponentId,
+            });
             delete activeGames[roomId];
           }, 30000);
         }
       }
     });
 
-    /* ======== Reconnect ======== */
     socket.on("reconnect_game", () => {
       for (const roomId in activeGames) {
         const game = activeGames[roomId];
         if (!game.players[socket.id]) continue;
 
-        if (game.disconnectTimer) {
-          clearTimeout(game.disconnectTimer);
-          game.disconnectTimer = null;
-        }
-
+        clearTimeout(game.disconnectTimer);
         socket.join(roomId);
 
         socket.emit("join", {
@@ -208,7 +118,9 @@ export default function (server) {
           players: game.players,
         });
 
-        const opponentId = Object.keys(game.players).find(id => id !== socket.id);
+        const opponentId = Object.keys(game.players)
+          .find(id => id !== socket.id);
+
         io.to(opponentId).emit("opponent_reconnected", {
           message: "Opponent reconnected!",
         });
@@ -216,7 +128,6 @@ export default function (server) {
     });
   });
 
-  /* ======== Bot Move Helper ======== */
   function botMakeMove(io, roomId) {
     const game = activeGames[roomId];
     if (!game) return;
@@ -225,22 +136,38 @@ export default function (server) {
     dropDisc(game.board, col, "yellow");
 
     if (checkWin(game.board, "yellow")) {
-      io.to(roomId).emit("game_over", { winner: "BOT", board: game.board });
+      io.to(roomId).emit("game_over", { winner: "BOT" });
       delete activeGames[roomId];
       return;
     }
 
     if (checkDraw(game.board)) {
-      io.to(roomId).emit("game_over", { winner: null, board: game.board });
+      io.to(roomId).emit("game_over", { winner: null });
       delete activeGames[roomId];
       return;
     }
 
     game.turn = "red";
-
     io.to(roomId).emit("game_update", {
       board: game.board,
       turn: game.turn,
     });
   }
+}
+
+async function handleWin(socket) {
+  if (!socket.data.username) return;
+
+  await Player.updateOne(
+    { username: socket.data.username },
+    { $inc: { wins: 1 } }
+  );
+}
+
+async function emitLeaderboard(io) {
+  const leaderboard = await Player.find()
+    .sort({ wins: -1 })
+    .limit(10)
+    .select("username wins -_id");
+  io.emit("leaderboardUpdate", leaderboard);
 }
