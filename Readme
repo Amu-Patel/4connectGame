@@ -7,7 +7,7 @@ Players can play **PvP (Player vs Player)** with live updates and a **real-time 
 ## ⚙️ Setup Instructions
 
 ### 1️⃣ Clone the Repository
-git clone https://github.com/Amu-Patel/4connectGame.git
+Make Clone of the Repository
 cd connect-4
 ##Backend Setup
 cd backend
