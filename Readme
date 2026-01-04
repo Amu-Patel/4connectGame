@@ -1,4 +1,4 @@
-# 🎮 Connect 4 – Real-Time Multiplayer Game
+🎮 Connect 4 – Real-Time Multiplayer Game
 
 A **real-time Connect 4 game** built using **React+vite, Node.js, Socket.io, and MongoDB**.  
 Players can play **PvP (Player vs Player)** with live updates and a **real-time leaderboard** tracking total wins per user.
