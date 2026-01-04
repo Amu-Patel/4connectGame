@@ -7,7 +7,7 @@ Players can play **PvP (Player vs Player)** with live updates and a **real-time 
 ## ⚙️ Setup Instructions
 
 ### 1️⃣ Clone the Repository
-Make Clone of the Repository
+git clone https://github.com/<your-username>/connect-4.git
 cd connect-4
 ##Backend Setup
 cd backend
@@ -55,4 +55,3 @@ npm run dev
 4. Take turns dropping discs
 5. First player to connect 4 in a row wins
 6. Winner is saved in the leaderboard
-
