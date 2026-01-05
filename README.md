@@ -8,8 +8,10 @@ Players can play **PvP (Player vs Player)** with live updates and a **real-time 
 
 ### Clone the Repository
 git clone https://github.com/Amu-Patel/4connectGame.git
+
 cd connect-4
-##Backend Setup
+
+## Backend Setup
 cd backend
 npm install
 Add .env
