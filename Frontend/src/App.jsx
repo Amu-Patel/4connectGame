@@ -17,7 +17,6 @@ function App() {
   const [isBotGame, setIsBotGame] = useState(false);
   const [showLeaderboard, setShowLeaderboard] = useState(false);
 
-
   const resetGame = () => {
     setRoomId(null);
     setBoard(null);
@@ -25,6 +24,7 @@ function App() {
     setYouAre(null);
     setIsBotGame(false);
     setWaiting(false);
+    setShowLeaderboard(false);
   };
 
   useEffect(() => {
@@ -42,34 +42,34 @@ function App() {
       setIsBotGame(!!bot);
       setWaiting(false);
     };
+
     const onGameUpdate = ({ board, turn }) => {
       setBoard(board);
       setTurn(turn);
     };
+
     const onGameOver = ({ winner }) => {
       if (winner === null) alert("Draw!");
       else if (winner === "BOT") alert("Bot wins!");
       else alert(winner === socket.id ? "You Win!" : "You Lose!");
       resetGame();
     };
+
     socket.on("waiting", onWaiting);
     socket.on("join", onJoin);
     socket.on("game_update", onGameUpdate);
     socket.on("game_over", onGameOver);
-    socket.on("opponent_disconnected", ({ message }) => alert(message));
-    socket.on("opponent_reconnected", ({ message }) => alert(message));
 
     return () => {
       socket.off("waiting", onWaiting);
       socket.off("join", onJoin);
       socket.off("game_update", onGameUpdate);
       socket.off("game_over", onGameOver);
-      socket.off("opponent_disconnected");
-      socket.off("opponent_reconnected");
     };
   }, [username]);
 
   const findMatch = () => socket.emit("find_match");
+
   if (!username) {
     return (
       <div className="h-screen flex items-center justify-center bg-slate-900">
@@ -80,13 +80,13 @@ function App() {
 
   if (!roomId) {
     return (
-      <div className="h-screen bg-slate-900 text-white flex flex-col items-center justify-center gap-6">
+      <div className="h-screen bg-slate-900 text-white flex flex-col items-center justify-center gap-6 px-4">
         <h1 className="text-4xl font-bold">4 in a Row</h1>
 
+        {/* Desktop leaderboard */}
         <div className="hidden md:block">
           <Leaderboard currentUser={username} />
         </div>
-
 
         {waiting ? (
           <p className="text-xl animate-pulse">
@@ -99,6 +99,30 @@ function App() {
           >
             Find Match
           </button>
+        )}
+
+        <button
+          onClick={() => setShowLeaderboard(true)}
+          className="md:hidden fixed top-4 right-4 z-40
+                     bg-slate-500 text-black
+                     p-3 rounded-full shadow-lg"
+        >
+          🏆
+        </button>
+
+        {showLeaderboard && (
+          <div className="md:hidden fixed inset-0 z-50 bg-black/60 flex justify-center items-center">
+            <div className="relative bg-slate-900 rounded-xl p-4 w-[90%] max-w-sm">
+              <button
+                onClick={() => setShowLeaderboard(false)}
+                className="absolute top-2 right-2 text-gray-400 hover:text-white"
+              >
+                ✖
+              </button>
+
+              <Leaderboard currentUser={username} />
+            </div>
+          </div>
         )}
       </div>
     );
@@ -115,35 +139,34 @@ function App() {
           bot={isBotGame}
         />
       </div>
+
       <div className="hidden md:block absolute top-1/2 right-6 -translate-y-1/2">
         <Leaderboard currentUser={username} />
       </div>
 
       <button
-      onClick={() => setShowLeaderboard(true)}
-      className="md:hidden fixed top-4 right-4 z-40
-                 bg-slate-500 text-black
-                 p-3 rounded-full shadow-lg"
-    >
-      🏆
-    </button>
+        onClick={() => setShowLeaderboard(true)}
+        className="md:hidden fixed top-4 right-4 z-40
+                   bg-slate-500 text-black
+                   p-3 rounded-full shadow-lg"
+      >
+        🏆
+      </button>
 
-    {showLeaderboard && (
-      <div className="md:hidden fixed inset-0 z-50 bg-black/60 flex justify-center items-center">
-        <div className="relative bg-slate-900 rounded-xl p-4 w-[90%] max-w-sm">
+      {showLeaderboard && (
+        <div className="md:hidden fixed inset-0 z-50 bg-black/60 flex justify-center items-center">
+          <div className="relative bg-slate-900 rounded-xl p-4 w-[90%] max-w-sm">
+            <button
+              onClick={() => setShowLeaderboard(false)}
+              className="absolute top-2 right-2 text-gray-400 hover:text-white"
+            >
+              ✖
+            </button>
 
-          
-          <button
-            onClick={() => setShowLeaderboard(false)}
-            className="absolute top-2 right-2 text-gray-400 hover:text-white"
-          >
-            ✖
-          </button>
-
-          <Leaderboard currentUser={username} />
+            <Leaderboard currentUser={username} />
+          </div>
         </div>
-      </div>
-    )}
+      )}
     </div>
   );
 }
