@@ -1,10 +1,8 @@
-// matchmaking.js
 import { createBoard } from "./game/gameLogic.js";
 
 let waitingPlayer = null;
 
 export function findMatch(io, socket, games) {
-  // If no one waiting → wait for 10 seconds, then start bot
   if (!waitingPlayer) {
     waitingPlayer = socket;
     socket.emit("waiting");
@@ -18,8 +16,6 @@ export function findMatch(io, socket, games) {
 
     return;
   }
-
-  // Human vs Human
   startHumanGame(io, waitingPlayer, socket, games);
   waitingPlayer = null;
 }

@@ -15,6 +15,8 @@ function App() {
   const [waiting, setWaiting] = useState(false);
   const [youAre, setYouAre] = useState(null);
   const [isBotGame, setIsBotGame] = useState(false);
+  const [showLeaderboard, setShowLeaderboard] = useState(false);
+
 
   const resetGame = () => {
     setRoomId(null);
@@ -81,7 +83,10 @@ function App() {
       <div className="h-screen bg-slate-900 text-white flex flex-col items-center justify-center gap-6">
         <h1 className="text-4xl font-bold">4 in a Row</h1>
 
-        <Leaderboard />
+        <div className="hidden md:block">
+          <Leaderboard currentUser={username} />
+        </div>
+
 
         {waiting ? (
           <p className="text-xl animate-pulse">
@@ -100,15 +105,45 @@ function App() {
   }
 
   return (
-    <div className="flex gap-6 p-6 bg-slate-900 min-h-screen text-white">
-      <GameBoard
-        board={board}
-        turn={turn}
-        youAre={youAre}
-        roomId={roomId}
-        bot={isBotGame}
-      />
-      <Leaderboard />
+    <div className="relative min-h-screen bg-slate-900 text-white">
+      <div className="flex justify-center items-center min-h-screen">
+        <GameBoard
+          board={board}
+          turn={turn}
+          youAre={youAre}
+          roomId={roomId}
+          bot={isBotGame}
+        />
+      </div>
+      <div className="hidden md:block absolute top-1/2 right-6 -translate-y-1/2">
+        <Leaderboard currentUser={username} />
+      </div>
+
+      <button
+      onClick={() => setShowLeaderboard(true)}
+      className="md:hidden fixed top-4 right-4 z-40
+                 bg-slate-500 text-black
+                 p-3 rounded-full shadow-lg"
+    >
+      🏆
+    </button>
+
+    {showLeaderboard && (
+      <div className="md:hidden fixed inset-0 z-50 bg-black/60 flex justify-center items-center">
+        <div className="relative bg-slate-900 rounded-xl p-4 w-[90%] max-w-sm">
+
+          
+          <button
+            onClick={() => setShowLeaderboard(false)}
+            className="absolute top-2 right-2 text-gray-400 hover:text-white"
+          >
+            ✖
+          </button>
+
+          <Leaderboard currentUser={username} />
+        </div>
+      </div>
+    )}
     </div>
   );
 }

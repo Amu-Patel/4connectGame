@@ -1,22 +1,49 @@
 import { useEffect, useState } from "react";
 import socket from "../socket";
+
 function Leaderboard({ currentUser }) {
   const [leaders, setLeaders] = useState([]);
+  const [yourRank, setYourRank] = useState(null);
+
   useEffect(() => {
-    socket.on("leaderboardUpdate", setLeaders);
-    return () => socket.off("leaderboardUpdate");
-  }, []);
+    const handleLeaderboard = (data) => {
+      setLeaders(data);
+
+      if (currentUser) {
+        const index = data.findIndex(
+          (p) => p.username === currentUser
+        );
+        setYourRank(index >= 0 ? index + 1 : null);
+      }
+    };
+
+    socket.on("leaderboardUpdate", handleLeaderboard);
+
+    return () => socket.off("leaderboardUpdate", handleLeaderboard);
+  }, [currentUser]);
+
   return (
     <div className="bg-gray-900 rounded-2xl p-4 shadow-xl w-full max-w-sm">
-      <h2 className="text-center font-bold mb-3 text-lg">🏆 Leaderboard</h2>
+      <h2 className="text-center font-bold mb-3 text-lg">
+        🏆 Leaderboard
+      </h2>
+
+      {yourRank && (
+        <p className="text-center text-sm text-gray-300 mb-3">
+          Your Position: <span className="font-bold">#{yourRank}</span>
+        </p>
+      )}
+
       {leaders.length === 0 && (
         <p className="text-center text-sm text-gray-400">
           No games played yet
         </p>
       )}
+
       {leaders.slice(0, 5).map((player, index) => {
         const isYou = player.username === currentUser;
-        const isWinner = index === 0; // Top player
+        const isWinner = index === 0;
+
         return (
           <div
             key={player.username}
@@ -39,6 +66,7 @@ function Leaderboard({ currentUser }) {
               {player.username}
               {isYou && " (You)"}
             </span>
+
             <span
               className={`
                 font-bold
@@ -53,4 +81,5 @@ function Leaderboard({ currentUser }) {
     </div>
   );
 }
+
 export default Leaderboard;
