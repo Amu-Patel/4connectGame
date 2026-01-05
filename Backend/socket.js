@@ -1,5 +1,5 @@
 import { Server } from "socket.io";
-import Player from "./models/Player.js";
+import Player from "./models/player.js";
 import { findMatch } from "./matchmaking.js";
 import { dropDisc, checkWin, checkDraw } from "./game/gameLogic.js";
 import { botMove } from "./game/bot.js";
