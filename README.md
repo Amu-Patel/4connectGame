@@ -12,7 +12,7 @@ git clone https://github.com/Amu-Patel/4connectGame.git
 cd connect-4
 
 ## Backend Setup
-cd backend
+cd backend 
 npm install
 Add .env
   MONGO_URI-$$$$$
