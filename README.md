@@ -9,7 +9,8 @@ Players can play **PvP (Player vs Player)** with live updates and a **real-time 
 ### Clone the Repository
 git clone https://github.com/Amu-Patel/4connectGame.git
 
-live:- https://4connect-game.vercel.app/
+live:- https://4connect-game.vercel.app
+       https://fourconnectgame-1.onrender.com
 
 cd connect-4
 
